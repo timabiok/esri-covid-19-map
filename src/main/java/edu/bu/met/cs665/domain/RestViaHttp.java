@@ -35,6 +35,6 @@ public interface RestViaHttp {
    * Command line runner wired to the spring application and generates rest data upon receipt of all
    * local and global parameters.
    */
-  CommandLineRunner run(RestTemplate restTemplate) throws Exception;
+  CommandLineRunner run(RestTemplate restTemplate);
 
 }

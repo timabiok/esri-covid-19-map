@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
@@ -39,7 +40,7 @@ import org.apache.log4j.Logger;
  * @date 20 AUG 2020
  */
 
-public class MapPointFeature extends Table implements Callable<Feature> {
+public class MapPointFeature extends Table {
 
   private static final int _87 = 87;
   private static final int _54 = 54;
@@ -85,38 +86,52 @@ public class MapPointFeature extends Table implements Callable<Feature> {
   }
 
   /**
-   * Creates FeatureColection given a JSON object parameter as String.
+   * Creates feature collection from JSON: one shared table, parallel feature creation, single batch add.
    */
-
   @Override
   public void createFeatureCollection(String json) {
     logger.setLevel(Level.DEBUG);
     List<Feature> features = new ArrayList<>();
-    int numOfprocessors = Runtime.getRuntime().availableProcessors();
+    int numProcessors = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
     JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
-    ExecutorService executor = Executors.newFixedThreadPool(numOfprocessors - 1);
+    ExecutorService executor = Executors.newFixedThreadPool(numProcessors);
+
     this.pointFields = createPointFields();
     this.pointsTable = createPointsTable(this.pointFields);
+    featureCollection.getTables().add(pointsTable);
+
     for (JsonElement row : jsonArray) {
-      this.jsonObject = row.getAsJsonObject();
-      setJsonObject(this.jsonObject);
-      Future<Feature> future = executor.submit(this);
+      JsonObject rowObj = row.getAsJsonObject();
+      Future<Feature> future = executor.submit(new RowToFeatureCallable(rowObj, pointsTable, pointFields));
       try {
-        features.add(future.get());
-        // logger.debug(future.get().getAttributes());
-        logger.info(future.get().getAttributes());
-
+        Feature feature = future.get();
+        features.add(feature);
+        if (logger.isDebugEnabled()) {
+          logger.debug(feature.getAttributes());
+        }
       } catch (InterruptedException e) {
-        e.printStackTrace();
+        Thread.currentThread().interrupt();
+        logger.error("Interrupted while building features", e);
+        break;
       } catch (ExecutionException e) {
-        e.printStackTrace();
+        logger.error("Failed to create feature for row", e.getCause());
       }
-
     }
+
     executor.shutdown();
-    while (!executor.isTerminated()) {
+    try {
+      if (!executor.awaitTermination(2, TimeUnit.MINUTES)) {
+        executor.shutdownNow();
+        logger.warn("Feature build executor did not terminate in time");
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      executor.shutdownNow();
+      logger.error("Interrupted awaiting executor", e);
+    }
+
+    if (!features.isEmpty()) {
       pointsTable.addFeaturesAsync(features);
-      Thread.yield();
     }
   }
 
@@ -232,35 +247,32 @@ public class MapPointFeature extends Table implements Callable<Feature> {
   }
 
   /**
-   * Callable method implementation.
+   * Per-row callable: creates a single feature using the shared table (thread-safe).
    */
+  private static final class RowToFeatureCallable implements Callable<Feature> {
+    private final JsonObject row;
+    private final FeatureCollectionTable table;
+    private final List<Field> fields;
 
-  @Override
-  public Feature call() throws Exception {
-    pointFields = createPointFields();
-    pointsTable = createPointsTable(pointFields);
+    RowToFeatureCallable(JsonObject row, FeatureCollectionTable table, List<Field> fields) {
+      this.row = row;
+      this.table = table;
+      this.fields = fields;
+    }
 
-    // SimpleRenderer renderer = new SimpleRenderer();
-    // pointsTable.setRenderer(renderer);
-    featureCollection.getTables().add(pointsTable);
-
-    jsonObject = getJsonObject();
-    setCountry(jsonObject.get("country").getAsString());
-    setLat(jsonObject.get("countryInfo").getAsJsonObject().get("lat").getAsLong());
-    setLon(jsonObject.get("countryInfo").getAsJsonObject().get("long").getAsLong());
-    setDeaths(jsonObject.get("deaths").getAsInt());
-    setCases(jsonObject.get("cases").getAsInt());
-
-    final Point point = new Point(getLon(), getLat(), SpatialReferences.getWgs84());
-    // features.add(pointsTable.createFeature(map, point));
-
-    map = new HashMap<>();
-    map.put(pointFields.get(0).getName(), getCountry());
-    map.put(pointFields.get(1).getName(), getDeaths());
-    map.put(pointFields.get(2).getName(), getCases());
-    Feature feature = pointsTable.createFeature(map, point);
-    return feature;
-
+    @Override
+    public Feature call() {
+      String country = row.get("country").getAsString();
+      long lat = row.get("countryInfo").getAsJsonObject().get("lat").getAsLong();
+      long lon = row.get("countryInfo").getAsJsonObject().get("long").getAsLong();
+      int deaths = row.get("deaths").getAsInt();
+      int cases = row.get("cases").getAsInt();
+      Point point = new Point(lon, lat, SpatialReferences.getWgs84());
+      Map<String, Object> attrs = new HashMap<>();
+      attrs.put(fields.get(0).getName(), country);
+      attrs.put(fields.get(1).getName(), deaths);
+      attrs.put(fields.get(2).getName(), cases);
+      return table.createFeature(attrs, point);
+    }
   }
-
 }

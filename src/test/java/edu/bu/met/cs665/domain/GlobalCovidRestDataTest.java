@@ -49,7 +49,7 @@ class GlobalCovidRestDataTest {
   }
 
   @Test
-  void testRun() throws Exception {
+  void testRun() {
     RestViaHttp restData = new GlobalCovidRestData();
     restData.createUri(url);
     RestTemplateBuilder builder = new RestTemplateBuilder();

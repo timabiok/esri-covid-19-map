@@ -15,10 +15,8 @@ class MapConfigurationTest {
 
   @Test
   void testSetupMap() {
-    //MapConfiguration  mapConfiguration = new MapConfiguration();
-      MapConfiguration.setupMap();    
+    MapConfiguration.setupMap(null);
     assertEquals(null, MapConfiguration.getArcMap());
-    
   }
 
 }

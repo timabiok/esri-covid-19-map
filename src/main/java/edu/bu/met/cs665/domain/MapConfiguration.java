@@ -27,29 +27,31 @@ public class MapConfiguration {
   
  
   /**
-   * Facade Method for the Application.
+   * Facade: builds the map and overlays COVID features. Call with non-null data (e.g. from
+   * GlobalCovidRestData.getDataAsync()) to avoid race conditions.
+   *
+   * @param data JSON response body from COVID API, or null/empty to show basemap only
    */
-  public static void setupMap() {
-    if (mapView != null) {
-      Basemap.Type basemapType = Basemap.Type.DARK_GRAY_CANVAS_VECTOR;
+  public static void setupMap(String data) {
+    if (mapView == null) {
+      return;
+    }
+    Basemap.Type basemapType = Basemap.Type.DARK_GRAY_CANVAS_VECTOR;
+    double latitude = REF_LATITUDE;
+    double longitude = REF_LONGITUDE;
+    int levelOfDetail = LEVEL_OF_DETAIL;
+    arcMap = new ArcGISMap(basemapType, latitude, longitude, levelOfDetail);
 
-      double latitude = REF_LATITUDE;
-      double longitude = REF_LONGITUDE;
-      int levelOfDetail = LEVEL_OF_DETAIL;
-      arcMap = new ArcGISMap(basemapType, latitude, longitude, levelOfDetail);
+    FeatureCollection featureCollection = new FeatureCollection();
+    FeatureCollectionLayer featureCollectionLayer = new FeatureCollectionLayer(featureCollection);
+    arcMap.getOperationalLayers().add(featureCollectionLayer);
 
-      FeatureCollection featureCollection = new FeatureCollection();
-      FeatureCollectionLayer featureCollectionLayer = new FeatureCollectionLayer(featureCollection);
-      arcMap.getOperationalLayers().add(featureCollectionLayer);
-
-      String data = GlobalCovidRestData.result.getBody();
-
+    if (data != null && !data.isBlank()) {
       MapPointFeature mapPointFeature = new MapPointFeature(featureCollection);
       mapPointFeature.createFeatureCollection(data);
-
-      mapView.setMap(arcMap);
     }
 
+    mapView.setMap(arcMap);
   }
   
   /**

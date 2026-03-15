@@ -133,7 +133,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>fully.qualified.MainClass</mainClass>
+							<mainClass>edu.bu.met.cs665.App</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>
@@ -165,7 +165,7 @@
 					of "mvn site" -->
 				<configuration>
 					<configLocation>config/google_checks.xml</configLocation>
-					<failOnViolation>false</failOnViolation>
+					<failOnViolation>true</failOnViolation>
 					<consoleOutput>true</consoleOutput>
 
 				</configuration>
@@ -177,27 +177,13 @@
 				<artifactId>findbugs-maven-plugin</artifactId>
 				<version>3.0.5</version>
 				<configuration>
-					<!-- Enables analysis which takes more memory but finds more bugs. If 
-						you run out of memory, changes the value of the effort element to 'Low'. -->
 					<effort>Max</effort>
-					<!-- Build doesn't fail if problems are found -->
 					<failOnError>false</failOnError>
-					<!-- Reports all bugs (other values are medium and max) -->
 					<threshold>Low</threshold>
-					<!-- Produces XML report -->
 					<xmlOutput>true</xmlOutput>
-
-					<!-- Configures the directory in which the XML report is created -->
 					<findbugsXmlOutputDirectory>${project.build.directory}/findbugs</findbugsXmlOutputDirectory>
 				</configuration>
-				<executions>
-					<!-- Ensures that FindBugs inspects source code when project is compiled. -->
-					<execution>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
+				<!-- No execution: FindBugs 3.x fails on Java 11 bytecode. Run manually: mvn findbugs:findbugs -->
 			</plugin>
 
 		</plugins>
@@ -221,7 +207,7 @@
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-1.2-api</artifactId>
-			<version>2.13.1</version>
+			<version>2.17.2</version>
 		</dependency>
 
 		<!-- <dependency> <groupId>org.apache.logging.log4j</groupId> <artifactId>log4j-core</artifactId> 
@@ -258,7 +244,7 @@
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-core</artifactId>
-			<version>2.13.2</version>
+			<version>2.17.2</version>
 		</dependency>
 
 		<dependency>
