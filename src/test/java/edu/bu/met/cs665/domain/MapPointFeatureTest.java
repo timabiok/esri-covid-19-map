@@ -3,8 +3,11 @@ package edu.bu.met.cs665.domain;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.esri.arcgisruntime.data.FeatureCollection;
 import com.esri.arcgisruntime.data.FeatureCollectionTable;
@@ -22,6 +25,24 @@ import com.google.gson.JsonParser;
  * @date 20 AUG 2020
  */
 class MapPointFeatureTest {
+
+  /** ArcGIS Runtime requires native libs (JNI); skip tests when not available (e.g. CI). */
+  private static boolean arcgisAvailable;
+
+  @BeforeAll
+  static void checkArcGISRuntime() {
+    try {
+      new FeatureCollection();
+      arcgisAvailable = true;
+    } catch (Throwable e) {
+      arcgisAvailable = false;
+    }
+  }
+
+  @BeforeEach
+  void assumeArcGIS() {
+    assumeTrue(arcgisAvailable, "ArcGIS Runtime native libs not available (skip when not set up)");
+  }
 
   String json = "{\n" + "    \"updated\": 1596924624020,\n" + "    \"country\": \"Italy\",\n"
       + "    \"countryInfo\": {\n" + "        \"_id\": 380,\n" + "        \"iso2\": \"IT\",\n"
